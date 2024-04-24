@@ -11,7 +11,18 @@ const customers = [];
 
 //Middleware
 function verifyAccountCPF(req, res, next) {
-    
+    const { cpf } = req.headers;
+
+    const customer = customers.find((customer) => customer.cpf === cpf)
+
+    if (!customer) {
+        return res.status(404).json({ error: "Conta não encontrada." })
+    }
+
+    req.customer = customer; // passando o customer para o request
+
+    return next();
+
 }
 
 // CRIAR CONTA
@@ -37,15 +48,8 @@ app.post("/account", (req, res) => {
  * BUSCAR EXTRATO
  */
 
-app.get("/statement", (req,res) => {
-    const {cpf} = req.headers; //troca para header para simulação de uma situação com token
-
-    const customer = customers.find(customer => customer.cpf === cpf);
-
-    if (!customer) {
-        return res.status(404).json({error: "Conta não encontrada."})
-    }
-
+app.get("/statement", verifyAccountCPF, (req, res) => {
+    const { customer } = req;
     return res.json(customer.statement);
 });
 
