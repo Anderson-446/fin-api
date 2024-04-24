@@ -52,7 +52,76 @@ app.get("/statement", verifyAccountCPF, (req, res) => {
     const { customer } = req;
     return res.json(customer.statement);
 });
+//Filtro por data
+app.get("/statement/date", verifyAccountCPF, (req, res) => {
+    const { customer } = req;
+    const { date } = req.query;
 
+    const dateFormat = new Date(date + " 00:00");
+
+    const statement = customer.statement.filter((statement) => statement.created_at.toDateString() === new Date(dateFormat).toDateString());
+
+    if(statement.length === 0) {
+        return res.status(404).json({ error: "Nenhum registro encontrado para esta data"})
+    }
+    return res.json(statement)
+});
+
+/**
+ * DEPOSITAR
+ */
+
+app.post("/deposit", verifyAccountCPF, (req, res) => {
+    const { description, amount } = req.body;
+    const { customer } = req;
+
+    const statementOperation =  {
+        description,
+        amount,
+        created_at: new Date(),
+        type: "credit"
+    }
+
+    customer.statement.push(statementOperation);
+
+    console.log(statementOperation);
+
+    return res.status(201).send({ message: `Depósito de R$${statementOperation.amount} adicionado à sua conta com sucesso, ${customer.name}!` });
+})
+
+/**
+ * SACAR
+ */
+
+app.post("/withdraw", verifyAccountCPF, (req, res) => {
+    const { amount } = req.body;
+    const { customer } = req;
+
+    const balance = customer.statement.reduce((acc, operation) => {
+        if (operation.type === 'credit') {
+            return acc + parseInt(operation.amount);
+        } else {
+            return acc - parseInt(operation.amount);
+        }
+    }, 0)
+
+    if(balance < amount) {
+        return res.status(400).send({ message: "Saldo insuficiente para saque."})
+    }
+
+    const statementOperation = {
+        description: `Saque de R$${amount}`,
+        amount,
+        created_at: new Date(),
+        type: "debit"
+    };
+
+    customer.statement.push(statementOperation);
+    
+    return res.status(200).send({ message: `Saque de R$${amount} realizado com sucesso!`});
+})
+
+//INICIALIZAÇÃO DO SERVIDOR
 app.listen(port, () => {
     console.log("servidor rodando na porta:", port)
 });
