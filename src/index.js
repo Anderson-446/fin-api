@@ -25,6 +25,20 @@ function verifyAccountCPF(req, res, next) {
 
 }
 
+//Balance
+function getBalance(statement) {
+    const balance = statement.reduce((acc, operation) => {
+        
+        if(operation.type ==="credit") {
+            return acc + parseInt(operation.amount);
+        } else {
+            return acc - parseInt(operation.amount);
+        }
+    },0);
+
+    return balance
+}
+
 // CRIAR CONTA
 app.post("/account", (req, res) => {
     const {cpf, name} = req.body;
@@ -87,7 +101,7 @@ app.post("/deposit", verifyAccountCPF, (req, res) => {
     console.log(statementOperation);
 
     return res.status(201).send({ message: `Depósito de R$${statementOperation.amount} adicionado à sua conta com sucesso, ${customer.name}!` });
-})
+});
 
 /**
  * SACAR
@@ -97,13 +111,14 @@ app.post("/withdraw", verifyAccountCPF, (req, res) => {
     const { amount } = req.body;
     const { customer } = req;
 
-    const balance = customer.statement.reduce((acc, operation) => {
-        if (operation.type === 'credit') {
-            return acc + parseInt(operation.amount);
-        } else {
-            return acc - parseInt(operation.amount);
-        }
-    }, 0)
+    // const balance = customer.statement.reduce((acc, operation) => {
+    //     if (operation.type === 'credit') {
+    //         return acc + parseInt(operation.amount);
+    //     } else {
+    //         return acc - parseInt(operation.amount);
+    //     }
+    // }, 0)
+    const balance = getBalance(customer.statement);
 
     if(balance < amount) {
         return res.status(400).send({ message: "Saldo insuficiente para saque."})
@@ -119,6 +134,57 @@ app.post("/withdraw", verifyAccountCPF, (req, res) => {
     customer.statement.push(statementOperation);
     
     return res.status(200).send({ message: `Saque de R$${amount} realizado com sucesso!`});
+});
+
+/**
+ * ATUALIZAR CONTA
+ */
+
+app.put("/account", verifyAccountCPF, (req, res) => {
+    const { name } = req.body;
+    const { customer } = req;
+
+    customer.name = name;
+
+    return res.status(201).send();
+
+})
+
+/**
+ * BUSCAR DADOS
+ */
+
+app.get("/account", verifyAccountCPF, (req, res) => {
+    const { customer } = req;
+
+    res.status(200).json(customer)
+})
+
+/**
+ * DELETAR CONTA
+ */
+
+app.delete("/account", verifyAccountCPF, (req, res) => {
+    const { customer } = req;
+
+    //splice
+
+    customers.splice(customer, 1);
+
+    res.status(200).json(customers)
+
+});
+
+/**
+ * BALANÇO DA CONTA
+ */
+
+app.get("/balance", verifyAccountCPF, (req, res) => {
+    const { customer } = req;
+
+    const balance = getBalance(customer.statement);
+
+    return res.json(balance);
 })
 
 //INICIALIZAÇÃO DO SERVIDOR
